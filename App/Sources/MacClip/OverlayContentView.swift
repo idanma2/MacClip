@@ -7,6 +7,7 @@ import MacClipCore
 /// automatically on selection (`copySelected` hides the overlay) or Escape.
 struct OverlayContentView: View {
     @Bindable var model: AppModel
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -48,10 +49,17 @@ struct OverlayContentView: View {
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .focusable()
+        .focused($isFocused)
         .onKeyPress(.upArrow) { model.selectPrevious(); return .handled }
         .onKeyPress(.downArrow) { model.selectNext(); return .handled }
         .onKeyPress(.return) { model.copySelected(); return .handled }
         .onKeyPress(.escape) { model.hideOverlay(); return .handled }
+        .onChange(of: model.isOverlayVisible) { _, visible in
+            // Re-claim focus on every open, not just the first — the
+            // panel/content view are cached and reused, so `.onAppear`
+            // alone would only fire once for the process's lifetime.
+            if visible { isFocused = true }
+        }
     }
 
     private func row(entry: ClipboardEntry, index: Int) -> some View {
