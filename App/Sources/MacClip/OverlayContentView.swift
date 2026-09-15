@@ -74,6 +74,7 @@ struct OverlayContentView: View {
         .background(isSelected ? Color.accentColor.opacity(0.25) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .contentShape(Rectangle())
+        .animation(.easeOut(duration: 0.1), value: isSelected)
         .onTapGesture {
             model.selectedIndex = index
             model.copySelected()

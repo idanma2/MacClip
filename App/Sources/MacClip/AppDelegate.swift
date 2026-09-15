@@ -39,14 +39,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Pops the panel in with a brief fade + scale-from-center, like
+    /// Spotlight/Alfred, rather than the instant `orderFront` AppKit does
+    /// by default — `NSWindow.animator()` is the standard way to animate
+    /// window properties (`alphaValue`, `frame`) without a `CGEventTap` or
+    /// any extra permission.
     private func showOverlay() {
         let panel = overlayPanel ?? OverlayPanel(model: model)
         overlayPanel = panel
         panel.center()
+
+        let finalFrame = panel.frame
+        let startFrame = finalFrame.insetBy(dx: finalFrame.width * 0.04, dy: finalFrame.height * 0.04)
+        panel.alphaValue = 0
+        panel.setFrame(startFrame, display: false)
         panel.makeKeyAndOrderFront(nil)
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.16
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().alphaValue = 1
+            panel.animator().setFrame(finalFrame, display: true)
+        }
     }
 
     private func hideOverlay() {
-        overlayPanel?.orderOut(nil)
+        guard let panel = overlayPanel else { return }
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.12
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+        }, completionHandler: {
+            // AppKit always invokes this on the main thread, but the SDK's
+            // closure type isn't `@MainActor`-annotated — `assumeIsolated`
+            // documents that guarantee to the compiler instead of hopping
+            // queues for something that's already synchronous.
+            MainActor.assumeIsolated {
+                panel.orderOut(nil)
+                panel.alphaValue = 1 // reset for the next fade-in
+            }
+        })
     }
 }
