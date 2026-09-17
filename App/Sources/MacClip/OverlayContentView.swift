@@ -51,13 +51,21 @@ struct OverlayContentView: View {
                         LazyVStack(spacing: 2) {
                             ForEach(Array(model.visibleEntries.enumerated()), id: \.element.id) { index, entry in
                                 row(entry: entry, index: index)
-                                    .id(index)
+                                    .id(entry.id)
                             }
                         }
                         .padding(6)
                     }
+                    // Scroll by the entry's own stable id, not its
+                    // position — the list can reorder (a new copy lands
+                    // at the top) while the popup is open, and a raw
+                    // index would then point at whatever row happens to
+                    // occupy that slot now rather than the one actually
+                    // selected.
                     .onChange(of: model.selectedIndex) { _, newValue in
-                        withAnimation { proxy.scrollTo(newValue) }
+                        guard model.visibleEntries.indices.contains(newValue) else { return }
+                        let id = model.visibleEntries[newValue].id
+                        withAnimation { proxy.scrollTo(id) }
                     }
                 }
             }
@@ -104,6 +112,15 @@ struct OverlayContentView: View {
             // inside it compete for the same tap and make the button
             // register unreliably. Two independent Buttons side by side
             // hit-test cleanly with no ambiguity.
+            //
+            // Only visible/clickable for the hovered-or-selected row, like
+            // Ditto and every other real clipboard manager — never all
+            // rows at once. Opacity/hit-testing rather than conditionally
+            // including the view, so the row's layout doesn't jump as the
+            // mouse moves; and since it's driven by the same `isSelected`
+            // that hover already sets, the control is always tied to
+            // whichever row is actually under the cursor at this instant,
+            // even if the list just reordered under a stationary mouse.
             Button {
                 model.removeEntry(entry.id)
             } label: {
@@ -111,6 +128,8 @@ struct OverlayContentView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
+            .opacity(isSelected ? 1 : 0)
+            .allowsHitTesting(isSelected)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)

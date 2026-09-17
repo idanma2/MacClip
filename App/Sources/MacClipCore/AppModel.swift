@@ -22,9 +22,18 @@ public final class AppModel {
     /// subset matching `searchText`. Selection, copy, and remove all index
     /// into this rather than `historyStore.entries` directly, so they can
     /// never point at the wrong row while a filter is narrowing the list.
+    ///
+    /// Matches against newline-normalized text (same transform the row
+    /// view uses to display each entry on one line) — otherwise a search
+    /// phrase that visually reads as one line can miss an entry whose
+    /// underlying text has a real line break where the display shows a
+    /// space, which looks like "search is broken" for exactly the kind of
+    /// multi-line pasted text this app spends most of its time holding.
     public var visibleEntries: [ClipboardEntry] {
         guard !searchText.isEmpty else { return historyStore.entries }
-        return historyStore.entries.filter { $0.text.localizedCaseInsensitiveContains(searchText) }
+        return historyStore.entries.filter {
+            $0.text.replacingOccurrences(of: "\n", with: " ").localizedCaseInsensitiveContains(searchText)
+        }
     }
 
     /// Starts clipboard monitoring and registers the global ⌥V hotkey.
