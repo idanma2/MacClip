@@ -29,13 +29,23 @@ struct OverlayContentView: View {
                 TextField("Search", text: $model.searchText)
                     .textFieldStyle(.plain)
                     .focused($isFocused)
+                    // The search field holds keyboard focus the whole
+                    // time (so you can type the moment the popup opens),
+                    // but a focused NSTextField otherwise swallows arrow
+                    // keys itself before SwiftUI's onKeyPress even gets a
+                    // look — attaching the handlers directly on the
+                    // focused view, not just an ancestor, is what
+                    // actually gives them first refusal.
+                    .onKeyPress(.upArrow) { model.selectPrevious(); return .handled }
+                    .onKeyPress(.downArrow) { model.selectNext(); return .handled }
+                    .onKeyPress(.return) { model.copySelected(); return .handled }
+                    .onKeyPress(.escape) { model.hideOverlay(); return .handled }
             }
             .padding(8)
             .background(.quaternary.opacity(0.5))
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
-            .onSubmit { model.copySelected() }
 
             Divider()
 
