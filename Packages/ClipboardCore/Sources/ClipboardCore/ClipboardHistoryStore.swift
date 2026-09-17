@@ -13,7 +13,7 @@ public final class ClipboardHistoryStore {
     private let maxEntries: Int
     private let fileURL: URL
 
-    public init(fileURL: URL? = nil, maxEntries: Int = 200) {
+    public init(fileURL: URL? = nil, maxEntries: Int = 1000) {
         self.maxEntries = maxEntries
         if let fileURL {
             self.fileURL = fileURL

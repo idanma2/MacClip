@@ -8,7 +8,7 @@ anywhere with ⌥V. First version (0.1.0), built end-to-end in one session.
 - **Clipboard capture** (`Packages/ClipboardCore`): polls `NSPasteboard.general`
   (the only mechanism macOS offers — no push API exists), records text
   copies with dedup (consecutive-identical is a no-op; re-copying an older
-  entry moves it to the top instead of duplicating), caps history at 200
+  entry moves it to the top instead of duplicating), caps history at 1000
   entries, persists to `~/Library/Application Support/MacClip/history.json`.
   Skips anything marked `org.nspasteboard.ConcealedType` or `TransientType`
   — the convention password managers use to mark "don't record this."

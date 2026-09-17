@@ -13,7 +13,7 @@ struct OverlayContentView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Image(systemName: "doc.on.clipboard")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tint)
                 Text("Clipboard History")
                     .font(.headline)
                 Spacer()
@@ -137,7 +137,7 @@ struct OverlayContentView: View {
                 Image(systemName: "xmark.circle.fill")
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.red)
             .opacity(isSelected ? 1 : 0)
             .allowsHitTesting(isSelected)
         }
