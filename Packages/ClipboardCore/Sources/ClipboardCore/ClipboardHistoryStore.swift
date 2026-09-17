@@ -41,6 +41,26 @@ public final class ClipboardHistoryStore {
             return
         }
         entries = decoded
+        dedupeExisting()
+    }
+
+    /// One-time cleanup for history saved before whitespace-trimmed
+    /// comparison existed in `record(text:)` — collapses any
+    /// already-on-disk entries that only differ by leading/trailing
+    /// whitespace, keeping each one's newest (topmost) occurrence.
+    private func dedupeExisting() {
+        var seenNormalized = Set<String>()
+        var deduped: [ClipboardEntry] = []
+        for entry in entries {
+            let normalized = entry.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalized.isEmpty, !seenNormalized.contains(normalized) else { continue }
+            seenNormalized.insert(normalized)
+            deduped.append(normalized == entry.text ? entry : ClipboardEntry(id: entry.id, text: normalized, copiedAt: entry.copiedAt))
+        }
+        if deduped != entries {
+            entries = deduped
+            persist()
+        }
     }
 
     private func persist() {
@@ -55,11 +75,17 @@ public final class ClipboardHistoryStore {
     /// - Copying text that already exists further down the history moves
     ///   that existing entry back to the top rather than leaving a stale
     ///   duplicate sitting where it was.
+    ///
+    /// Both rules compare after trimming leading/trailing whitespace —
+    /// copying the same URL/IP/line with or without a trailing newline
+    /// (common from terminals and browser address bars) is the same value
+    /// to a human eye, and should collapse to one entry, not two.
     public func record(text: String) {
-        guard !text.isEmpty else { return }
-        guard entries.first?.text != text else { return }
-        entries.removeAll { $0.text == text }
-        entries.insert(ClipboardEntry(text: text), at: 0)
+        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return }
+        guard entries.first?.text != normalized else { return }
+        entries.removeAll { $0.text == normalized }
+        entries.insert(ClipboardEntry(text: normalized), at: 0)
         if entries.count > maxEntries {
             entries.removeLast(entries.count - maxEntries)
         }

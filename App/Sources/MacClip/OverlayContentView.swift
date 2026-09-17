@@ -17,22 +17,39 @@ struct OverlayContentView: View {
                 Text("Clipboard History")
                     .font(.headline)
                 Spacer()
-                Text("\(model.historyStore.entries.count)")
+                Text("\(model.visibleEntries.count)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             .padding(12)
+
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search", text: $model.searchText)
+                    .textFieldStyle(.plain)
+                    .focused($isFocused)
+            }
+            .padding(8)
+            .background(.quaternary.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
+            .onSubmit { model.copySelected() }
 
             Divider()
 
             if model.historyStore.entries.isEmpty {
                 ContentUnavailableView("No Copies Yet", systemImage: "doc.on.clipboard")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if model.visibleEntries.isEmpty {
+                ContentUnavailableView.search(text: model.searchText)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 2) {
-                            ForEach(Array(model.historyStore.entries.enumerated()), id: \.element.id) { index, entry in
+                            ForEach(Array(model.visibleEntries.enumerated()), id: \.element.id) { index, entry in
                                 row(entry: entry, index: index)
                                     .id(index)
                             }
@@ -49,7 +66,6 @@ struct OverlayContentView: View {
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .focusable()
-        .focused($isFocused)
         .onKeyPress(.upArrow) { model.selectPrevious(); return .handled }
         .onKeyPress(.downArrow) { model.selectNext(); return .handled }
         .onKeyPress(.return) { model.copySelected(); return .handled }
@@ -60,15 +76,34 @@ struct OverlayContentView: View {
             // alone would only fire once for the process's lifetime.
             if visible { isFocused = true }
         }
+        .onChange(of: model.searchText) { _, _ in
+            // The filtered list shrinks/reorders as you type — keep the
+            // selection anchored to the top match instead of pointing at
+            // whatever row happens to still exist at the old index.
+            model.selectedIndex = 0
+        }
     }
 
     private func row(entry: ClipboardEntry, index: Int) -> some View {
         let isSelected = index == model.selectedIndex
-        return HStack {
-            Text(entry.text.replacingOccurrences(of: "\n", with: " "))
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Spacer()
+        return HStack(spacing: 8) {
+            Button {
+                model.selectedIndex = index
+                model.copySelected()
+            } label: {
+                Text(entry.text.replacingOccurrences(of: "\n", with: " "))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            // A sibling Button, not nested inside the row's own tap
+            // handling — a plain `.onTapGesture` on the row and a `Button`
+            // inside it compete for the same tap and make the button
+            // register unreliably. Two independent Buttons side by side
+            // hit-test cleanly with no ambiguity.
             Button {
                 model.removeEntry(entry.id)
             } label: {
@@ -81,12 +116,7 @@ struct OverlayContentView: View {
         .padding(.vertical, 6)
         .background(isSelected ? Color.accentColor.opacity(0.25) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        .contentShape(Rectangle())
         .animation(.easeOut(duration: 0.1), value: isSelected)
-        .onTapGesture {
-            model.selectedIndex = index
-            model.copySelected()
-        }
         .onHover { hovering in
             if hovering { model.selectedIndex = index }
         }

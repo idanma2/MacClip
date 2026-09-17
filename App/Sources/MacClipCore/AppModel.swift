@@ -9,12 +9,22 @@ public final class AppModel {
     public let historyStore: ClipboardHistoryStore
     public var isOverlayVisible = false
     public var selectedIndex = 0
+    public var searchText = ""
 
     private var monitor: PasteboardMonitor?
     private var hotKeyManager: HotKeyManager?
 
     public init(historyStore: ClipboardHistoryStore = ClipboardHistoryStore()) {
         self.historyStore = historyStore
+    }
+
+    /// What's actually shown in the popup — the full history, or the
+    /// subset matching `searchText`. Selection, copy, and remove all index
+    /// into this rather than `historyStore.entries` directly, so they can
+    /// never point at the wrong row while a filter is narrowing the list.
+    public var visibleEntries: [ClipboardEntry] {
+        guard !searchText.isEmpty else { return historyStore.entries }
+        return historyStore.entries.filter { $0.text.localizedCaseInsensitiveContains(searchText) }
     }
 
     /// Starts clipboard monitoring and registers the global ⌥V hotkey.
@@ -52,6 +62,7 @@ public final class AppModel {
     }
 
     public func showOverlay() {
+        searchText = ""
         selectedIndex = 0
         isOverlayVisible = true
     }
@@ -61,8 +72,8 @@ public final class AppModel {
     }
 
     public func selectNext() {
-        guard !historyStore.entries.isEmpty else { return }
-        selectedIndex = min(selectedIndex + 1, historyStore.entries.count - 1)
+        guard !visibleEntries.isEmpty else { return }
+        selectedIndex = min(selectedIndex + 1, visibleEntries.count - 1)
     }
 
     public func selectPrevious() {
@@ -75,8 +86,8 @@ public final class AppModel {
     /// app was frontmost, same as how every other clipboard manager's
     /// "select an item" action works.
     public func copySelected() {
-        guard historyStore.entries.indices.contains(selectedIndex) else { return }
-        let entry = historyStore.entries[selectedIndex]
+        guard visibleEntries.indices.contains(selectedIndex) else { return }
+        let entry = visibleEntries[selectedIndex]
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(entry.text, forType: .string)
         hideOverlay()
@@ -84,8 +95,8 @@ public final class AppModel {
 
     public func removeEntry(_ id: UUID) {
         historyStore.remove(id)
-        if selectedIndex >= historyStore.entries.count {
-            selectedIndex = max(0, historyStore.entries.count - 1)
+        if selectedIndex >= visibleEntries.count {
+            selectedIndex = max(0, visibleEntries.count - 1)
         }
     }
 }
